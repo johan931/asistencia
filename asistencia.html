@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="p-6 md:p-12 min-h-screen flex items-center justify-center">
+    <div id="app" class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-4xl text-center">
+        <!-- Contenido dinámico de la aplicación se renderizará aquí -->
+    </div>
+
+    <script>
+        // Variables de estado de la aplicación
+        let students = [];
+        let attendanceMessage = '';
+        let isStudentMarked = {};
+        let showAdminView = false;
+        let adminPassword = '';
+        let attendanceCounts = {};
+
+        // Lista de estudiantes en el orden exacto proporcionado
+        const initialStudents = [
+            { id: '138714', name: 'AGUILAR EVARISTO JUAN JOSE' },
+            { id: '405458', name: 'ALONSO MUÑOZ BELEN' },
+            { id: '317652', name: 'ARGOTE CELAYOS CRISTA ZOE' },
+            { id: '138693', name: 'AVILA RINCON MARIA JOSE' },
+            { id: '315685', name: 'AVILA SEGURA CHRISTIAN ALEXANDRO' },
+            { id: '562598', name: 'CARRILLO GOMEZ MARIANA' },
+            { id: '138715', name: 'ESPINOZA VENTURA SARA ROCIO' },
+            { id: '374252', name: 'ESTRADA SOTO ASALIA AZUCENA' },
+            { id: '285810', name: 'GARCIA CHAVEZ ANGEL JARET' },
+            { id: '286265', name: 'GONZALEZ HERNANDEZ DIEGO ANTONIO' },
+            { id: '604786', name: 'GONZÁLEZ SÁNCHEZ BRUNO NEMESIO' },
+            { id: '138696', name: 'GUERRERO ALVAREZ IRENE' },
+            { id: '609274', name: 'GUERRERO GONZALEZ NORA REGINA' },
+            { id: '563155', name: 'GUEVARA GONZALEZ YAEL GUADALUPE' },
+            { id: '395393', name: 'GUTIERREZ DIAZ JIMENA' },
+            { id: '137831', name: 'GUTIERREZ MATA KARLA JANNET' },
+            { id: '138718', name: 'GUZMAN GUZMAN MARIA FERNANDA' },
+            { id: '562722', name: 'HERNANDEZ HERNANDEZ FATIMA' },
+            { id: '614552', name: 'JUAREZ MARBAN FRIDA NAHOMI' },
+            { id: '138704', name: 'MELENDEZ CASTRO MARIA DANIELA' },
+            { id: '147213', name: 'MÉNDEZ JARAMILLO AXEL EDUARDO' },
+            { id: '511845', name: 'MOLINA LOPEZ CARLOS IVAN' },
+            { id: '347898', name: 'OLVERA GUZMAN ELIZABETH' },
+            { id: '285841', name: 'PEDRAZA HERNANDEZ JUAN ALFONSO' },
+            { id: '138708', name: 'RAMIREZ GUTIERREZ AXEL OMAR' },
+            { id: '138692', name: 'RANGEL GUERRERO GEMMA YAMILE' },
+            { id: '138695', name: 'RAZO GARCIA BRYAN EMILIO' },
+            { id: '138698', name: 'RODRIGUEZ GRANADOS EDGAR' },
+            { id: '317468', name: 'RUIZ RIOS LIAM' },
+            { id: '233414', name: 'SPECIA GALVAN LIA' },
+            { id: '138706', name: 'VARGAS JORGE PEDRO ANTONIO' },
+            { id: '374292', name: 'VARGAS MATA ESTEFANIA MARGARITA' },
+            { id: '138710', name: 'VELAZQUEZ TORRES WENDY ITZEL' },
+            { id: '317486', name: 'VILLANUEVA BALDERAS FABIAN ALEJANDRO' },
+            { id: '381507', name: 'VAZQUEZ ZAVALA YENNIFER' },
+            { id: '605832', name: 'RAMIREZ VERGARA JULIETA VALENTINA' }
+        ];
+
+        const colors = [
+            'from-emerald-400 to-cyan-400',
+            'from-violet-400 to-indigo-400',
+            'from-rose-400 to-pink-400',
+            'from-yellow-400 to-orange-400',
+            'from-sky-400 to-indigo-400'
+        ];
+
+        // Función para renderizar la UI
+        const renderApp = () => {
+            const appContainer = document.getElementById('app');
+            appContainer.innerHTML = showAdminView ? renderAdminPanel() : renderStudentView();
+            addEventListeners();
+        };
+
+        // Renderizar la vista de estudiante
+        const renderStudentView = () => {
+            let studentButtonsHtml = initialStudents.map((student, index) => `
+                <button
+                    id="student-btn-${student.id}"
+                    data-student-id="${student.id}"
+                    data-student-name="${student.name}"
+                    ${isStudentMarked[student.id] ? 'disabled' : ''}
+                    class="p-4 rounded-xl text-white font-semibold text-lg transition-all duration-300 transform
+                    hover:scale-105 active:scale-95
+                    ${isStudentMarked[student.id]
+                        ? 'bg-gradient-to-br from-gray-400 to-gray-500 cursor-not-allowed'
+                        : `bg-gradient-to-br ${colors[index % colors.length]}`
+                    }
+                ">
+                    <span class="block text-xl">${student.name}</span>
+                    <span class="block text-sm opacity-80 mt-1">NUA: ${student.id}</span>
+                </button>
+            `).join('');
+
+            return `
+                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">
+                    Asistencia: Cálculo Integral QFB 2025-II
+                </h1>
+                <p class="text-md md:text-lg text-gray-600 mb-8">
+                    Por favor, haz clic en tu nombre para registrar tu asistencia.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${studentButtonsHtml}
+                </div>
+                ${attendanceMessage ? `<div class="mt-8 p-4 bg-blue-100 text-blue-800 rounded-lg shadow-sm"><p class="font-medium">${attendanceMessage}</p></div>` : ''}
+                <div class="mt-8 flex justify-center items-center gap-4">
+                    <input
+                        type="password"
+                        id="admin-password-input"
+                        placeholder="Contraseña de administrador"
+                        value="${adminPassword}"
+                        class="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-1/2"
+                    />
+                    <button
+                        id="toggle-admin-btn"
+                        class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                        Ver Asistencias
+                    </button>
+                </div>
+            `;
+        };
+
+        // Renderizar la vista de administrador
+        const renderAdminPanel = () => {
+            const tableRows = initialStudents.map(student => `
+                <tr class="border-b border-gray-200 hover:bg-gray-100">
+                    <td class="py-3 px-6 text-left whitespace-nowrap font-medium">${student.name}</td>
+                    <td class="py-3 px-6 text-left">${student.id}</td>
+                    <td class="py-3 px-6 text-left">${attendanceCounts[student.id] || 0}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-6">
+                    Resumen de Asistencia
+                </h1>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Nombre</th>
+                                <th class="py-3 px-6 text-left">NUA</th>
+                                <th class="py-3 px-6 text-left">Asistencias</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-600 text-sm font-light">
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-8 flex flex-wrap justify-center items-center gap-4">
+                    <button
+                        id="download-data-btn"
+                        class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors duration-200"
+                    >
+                        Descargar Reporte (CSV)
+                    </button>
+                    <button
+                        id="reset-data-btn"
+                        class="px-6 py-3 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 transition-colors duration-200"
+                    >
+                        Reiniciar Asistencias
+                    </button>
+                    <button
+                        id="toggle-admin-btn"
+                        class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors duration-200"
+                    >
+                        Cerrar Vista de Administrador
+                    </button>
+                </div>
+            `;
+        };
+
+        // Manejadores de eventos
+        const addEventListeners = () => {
+            const toggleAdminBtn = document.getElementById('toggle-admin-btn');
+            if (toggleAdminBtn) {
+                toggleAdminBtn.addEventListener('click', toggleAdminView);
+            }
+
+            if (showAdminView) {
+                const downloadBtn = document.getElementById('download-data-btn');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', downloadData);
+                }
+                const resetBtn = document.getElementById('reset-data-btn');
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', confirmReset);
+                }
+            } else {
+                initialStudents.forEach(student => {
+                    const studentBtn = document.getElementById(`student-btn-${student.id}`);
+                    if (studentBtn) {
+                        studentBtn.addEventListener('click', () => confirmAttendance(student.id, student.name));
+                    }
+                });
+                const adminPasswordInput = document.getElementById('admin-password-input');
+                if (adminPasswordInput) {
+                    adminPasswordInput.addEventListener('input', (e) => {
+                        adminPassword = e.target.value;
+                    });
+                }
+            }
+        };
+
+        // Lógica de la aplicación
+        const confirmAttendance = (studentId, studentName) => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="p-8 bg-white rounded-lg shadow-xl text-center">
+                    <h3 class="text-xl font-bold mb-4">¿Está seguro que es el estudiante?</h3>
+                    <p class="text-lg font-semibold mb-4">${studentName}</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="confirm-btn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Sí, registrar</button>
+                        <button id="cancel-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400">Cancelar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('confirm-btn').addEventListener('click', () => {
+                markAttendance(studentId, studentName);
+                modal.remove();
+            });
+            document.getElementById('cancel-btn').addEventListener('click', () => {
+                modal.remove();
+            });
+        };
+
+        const markAttendance = (studentId, studentName) => {
+            const today = new Date().toISOString().slice(0, 10);
+            const attendanceKey = `attendance_${studentId}_${today}`;
+            if (!localStorage.getItem(attendanceKey)) {
+                const timestamp = new Date().toISOString();
+                const record = { studentId, studentName, timestamp };
+                const attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+                attendanceRecords.push(record);
+                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                
+                attendanceMessage = `¡Asistencia de ${studentName} registrada con éxito!`;
+                isStudentMarked[studentId] = true;
+                
+                updateAttendanceCounts();
+                renderApp();
+            } else {
+                attendanceMessage = `¡${studentName}, ya has registrado tu asistencia para hoy!`;
+                isStudentMarked[studentId] = true;
+                renderApp();
+            }
+        };
+        
+        const updateAttendanceCounts = () => {
+            const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+            const counts = {};
+            records.forEach(record => {
+                counts[record.studentId] = (counts[record.studentId] || 0) + 1;
+            });
+            attendanceCounts = counts;
+        };
+
+        const checkDailyAttendance = () => {
+            const today = new Date().toISOString().slice(0, 10);
+            isStudentMarked = {};
+            const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+            records.forEach(record => {
+                if (record.timestamp.slice(0, 10) === today) {
+                    isStudentMarked[record.studentId] = true;
+                }
+            });
+        };
+
+        const toggleAdminView = () => {
+            if (showAdminView) {
+                showAdminView = false;
+                adminPassword = '';
+            } else {
+                if (adminPassword === 'calculo2024') {
+                    showAdminView = true;
+                } else {
+                    const modal = document.createElement('div');
+                    modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center';
+                    modal.innerHTML = `
+                        <div class="p-8 bg-white rounded-lg shadow-xl text-center">
+                            <h3 class="text-xl font-bold mb-4">Contraseña incorrecta.</h3>
+                            <button onclick="this.parentNode.parentNode.remove()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Cerrar</button>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                }
+            }
+            renderApp();
+        };
+
+        const downloadData = () => {
+            const records = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+            let csvContent = "NUA,ALUMNO,FECHA,HORA\n";
+            records.forEach(record => {
+                const date = new Date(record.timestamp);
+                const fecha = date.toLocaleDateString();
+                const hora = date.toLocaleTimeString();
+                csvContent += `${record.studentId},${record.studentName},${fecha},${hora}\n`;
+            });
+
+            // Obtener la fecha actual para el nombre del archivo
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0'); // Meses de 0 a 11
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+            const filename = `reporte_asistencia_${dateString}.csv`;
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        };
+        
+        const confirmReset = () => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="p-8 bg-white rounded-lg shadow-xl text-center">
+                    <h3 class="text-xl font-bold mb-4">¿Estás seguro que quieres reiniciar?</h3>
+                    <p class="text-gray-600 mb-4">Esto eliminará todos los registros de asistencia de forma permanente.</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="confirm-reset-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Sí, estoy seguro</button>
+                        <button onclick="this.parentNode.parentNode.parentNode.remove()" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400">Cancelar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            document.getElementById('confirm-reset-btn').addEventListener('click', resetAllAttendance);
+        };
+        
+        const resetAllAttendance = () => {
+            localStorage.setItem('attendanceRecords', '[]');
+            attendanceMessage = 'Todos los registros de asistencia han sido eliminados.';
+            checkDailyAttendance();
+            updateAttendanceCounts();
+            document.querySelector('.fixed.inset-0').remove();
+            renderApp();
+        };
+
+        // Función para inicializar la aplicación al cargar
+        window.onload = () => {
+            checkDailyAttendance();
+            updateAttendanceCounts();
+            students = initialStudents;
+            renderApp();
+        };
+
+    </script>
+</body>
+</html>
